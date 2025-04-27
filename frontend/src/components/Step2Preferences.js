@@ -47,9 +47,16 @@ export default function Step2Preferences({ onBack, onContinue }) {
     setNewAge('');
   };
 
-  const handlePrefChange = async (id, checked) => {
-    setPrefs(prefs => prefs.map(p => p.id === id ? { ...p, checked } : p));
-    await updatePreference(id, checked);
+  const handlePrefChange = async (id, checked, idx) => {
+    setPrefs(prefs => prefs.map((p, i) => (p.id === id || (p.id === undefined && i === idx)) ? { ...p, checked } : p));
+    if (id) {
+      await updatePreference(id, checked);
+    } else {
+      // Save all preferences if no id (first time setup)
+      await setPreferences(
+        prefs => prefs.map((p, i) => (i === idx ? { ...p, checked } : p))
+      );
+    }
   };
 
   return (
@@ -108,7 +115,7 @@ export default function Step2Preferences({ onBack, onContinue }) {
               type="checkbox"
               className="form-check-input me-2"
               checked={!!p.checked}
-              onChange={e => handlePrefChange(p.id, e.target.checked)}
+              onChange={e => handlePrefChange(p.id, e.target.checked, idx)}
             />
             <span>{p.name}</span>
           </li>

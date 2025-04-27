@@ -108,4 +108,12 @@ export async function updatePreference(id, checked) {
     body: JSON.stringify({checked}),
   });
   return res.json();
+}
+
+export async function getMealPlan() {
+  const res = await fetch('http://localhost:5001/api/mealplan', {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return res.json();
 } 

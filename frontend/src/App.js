@@ -4,6 +4,7 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import Step1Pantry from './components/Step1Pantry';
 import Step2Preferences from './components/Step2Preferences';
+import Step3MealPlan from './components/Step3MealPlan';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -37,9 +38,18 @@ function App() {
 
   if (step === 3) {
     return (
+      <Step3MealPlan
+        onBack={() => setStep(2)}
+        onContinue={() => setStep(4)}
+      />
+    );
+  }
+
+  if (step === 4) {
+    return (
       <div className="container mt-4" style={{ maxWidth: 500 }}>
-        <h4>Step 3 coming soon!</h4>
-        <button className="btn btn-secondary" onClick={() => setStep(2)}>Back to Preferences</button>
+        <h4>Step 4 coming soon!</h4>
+        <button className="btn btn-secondary" onClick={() => setStep(3)}>Back to Meal Plan</button>
       </div>
     );
   }

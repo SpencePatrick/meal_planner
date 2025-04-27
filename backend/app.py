@@ -6,6 +6,8 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, PantryItem, FamilyMember, UserPreference
 from dotenv import load_dotenv
+import openai
+from prompt_template import build_meal_plan_prompt
 
 load_dotenv()
 
@@ -15,9 +17,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-db.init_app(app)
-CORS(app, supports_credentials=True, origins="http://localhost:3000")
+from flask_cors import CORS
+CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
 
+db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
@@ -151,6 +154,35 @@ def update_preference(pref_id):
     pref.checked = data['checked']
     db.session.commit()
     return jsonify({'id': pref.id, 'name': pref.name, 'checked': pref.checked})
+
+@app.route('/api/mealplan', methods=['POST'])
+@login_required
+def mealplan():
+    # Gather user data
+    pantry_items = PantryItem.query.filter_by(user_id=current_user.id).all()
+    family_members = FamilyMember.query.filter_by(user_id=current_user.id).all()
+    preferences = UserPreference.query.filter_by(user_id=current_user.id).all()
+
+    # Format data for the prompt
+    pantry_str = '\n'.join(f"- {item.name} ({item.quantity})" for item in pantry_items) or "(none)"
+    family_str = '\n'.join(f"- {m.first_name} (age {m.age})" for m in family_members) or "(none)"
+    preferences_str = '\n'.join(f"- {p.name}" for p in preferences if p.checked) or "(none)"
+
+    # Build prompt
+    prompt = build_meal_plan_prompt(pantry_str, family_str, preferences_str)
+
+    client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=600,
+            temperature=0.7
+        )
+        ai_reply = response.choices[0].message.content
+        return jsonify({'plan': ai_reply})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     with app.app_context():
