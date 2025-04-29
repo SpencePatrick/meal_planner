@@ -4,7 +4,7 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, PantryItem, FamilyMember, UserPreference
+from models import db, User, PantryItem, FamilyMember, UserPreference, MealPlan
 from dotenv import load_dotenv
 import openai
 from prompt_template import build_meal_plan_prompt
@@ -155,9 +155,17 @@ def update_preference(pref_id):
     db.session.commit()
     return jsonify({'id': pref.id, 'name': pref.name, 'checked': pref.checked})
 
-@app.route('/api/mealplan', methods=['POST'])
+@app.route('/api/mealplan', methods=['GET', 'POST'])
 @login_required
 def mealplan():
+    if request.method == 'GET':
+        # Return stored meal plan if it exists
+        meal_plan = MealPlan.query.filter_by(user_id=current_user.id).first()
+        if meal_plan:
+            return jsonify({'plan': meal_plan.plan_text})
+        return jsonify({'plan': None})
+
+    # POST request - generate new plan
     # Gather user data
     pantry_items = PantryItem.query.filter_by(user_id=current_user.id).all()
     family_members = FamilyMember.query.filter_by(user_id=current_user.id).all()
@@ -188,10 +196,20 @@ def mealplan():
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=1000,  # Increased for longer response
+            max_tokens=1000,
             temperature=0.7
         )
         ai_reply = response.choices[0].message.content
+
+        # Store or update the meal plan
+        meal_plan = MealPlan.query.filter_by(user_id=current_user.id).first()
+        if meal_plan:
+            meal_plan.plan_text = ai_reply
+        else:
+            meal_plan = MealPlan(plan_text=ai_reply, user_id=current_user.id)
+            db.session.add(meal_plan)
+        db.session.commit()
+
         return jsonify({'plan': ai_reply})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

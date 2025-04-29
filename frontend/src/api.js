@@ -110,10 +110,11 @@ export async function updatePreference(id, checked) {
   return res.json();
 }
 
-export async function getMealPlan() {
-  const res = await fetch('http://localhost:5001/api/mealplan', {
-    method: 'POST',
-    credentials: 'include',
+export async function getMealPlan(forceRefresh = false) {
+  const method = forceRefresh ? 'POST' : 'GET';
+  const res = await fetch(`${API}/mealplan`, {
+    method,
+    credentials: 'include'
   });
   return res.json();
 } 
