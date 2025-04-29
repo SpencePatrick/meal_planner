@@ -163,20 +163,32 @@ def mealplan():
     family_members = FamilyMember.query.filter_by(user_id=current_user.id).all()
     preferences = UserPreference.query.filter_by(user_id=current_user.id).all()
 
-    # Format data for the prompt
-    pantry_str = '\n'.join(f"- {item.name} ({item.quantity})" for item in pantry_items) or "(none)"
-    family_str = '\n'.join(f"- {m.first_name} (age {m.age})" for m in family_members) or "(none)"
-    preferences_str = '\n'.join(f"- {p.name}" for p in preferences if p.checked) or "(none)"
+    # Format data for the prompt with detailed information
+    pantry_str = "Available ingredients:\n" + '\n'.join(
+        f"- {item.name}: {item.quantity}" 
+        for item in pantry_items
+    ) if pantry_items else "No items in pantry"
+
+    family_str = "Family composition:\n" + '\n'.join(
+        f"- {m.first_name} (Age: {m.age})" 
+        for m in family_members
+    ) if family_members else "No family members listed"
+
+    preferences_str = "Meal preferences:\n" + '\n'.join(
+        f"- {p.name}" 
+        for p in preferences if p.checked
+    ) if any(p.checked for p in preferences) else "No specific preferences"
 
     # Build prompt
     prompt = build_meal_plan_prompt(pantry_str, family_str, preferences_str)
 
+    # Call OpenAI API
     client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=600,
+            max_tokens=1000,  # Increased for longer response
             temperature=0.7
         )
         ai_reply = response.choices[0].message.content
